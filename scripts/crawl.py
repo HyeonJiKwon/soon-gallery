@@ -251,7 +251,7 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--blog-id", required=True)
     ap.add_argument("--category-no", required=True)
-    ap.add_argument("--category-label", required=True, help="short label to tag posts with, e.g. 그림 or 제주")
+    ap.add_argument("--category-label", required=True, help="short label to tag posts with, e.g. 일상 or 제주")
     ap.add_argument("--limit", type=int, default=None, help="max posts to crawl (for testing)")
     ap.add_argument(
         "--full",

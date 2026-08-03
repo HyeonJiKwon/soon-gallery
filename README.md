@@ -28,8 +28,8 @@ naver_blog_gallery/
 ```bash
 cd /Users/khjbest39/myprj/naver_blog_gallery
 
-# 그림 카테고리 (categoryNo=46)
-python3 scripts/crawl.py --blog-id khjkes --category-no 46 --category-label 그림
+# 일상 카테고리 (categoryNo=46)
+python3 scripts/crawl.py --blog-id khjkes --category-no 46 --category-label 일상
 
 # 제주 카테고리 (categoryNo=51)
 python3 scripts/crawl.py --blog-id khjkes --category-no 51 --category-label 제주
@@ -102,7 +102,7 @@ git push origin main
 
 ## 한 번에 다 하기
 
-크롤링(그림+제주) → 사이트 재생성 → 변경 있으면 커밋+푸시(Vercel 자동 배포)까지 한 번에:
+크롤링(일상+제주) → 사이트 재생성 → 변경 있으면 커밋+푸시(Vercel 자동 배포)까지 한 번에:
 
 ```bash
 bash scripts/auto_update.sh

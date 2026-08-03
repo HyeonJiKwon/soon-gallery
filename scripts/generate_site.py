@@ -726,7 +726,7 @@ def date_sort_key(date_str):
 def main():
     posts = json.loads(DATA_PATH.read_text(encoding="utf-8"))
     posts.sort(key=lambda p: date_sort_key(p.get("date", "")), reverse=True)
-    categories = sorted(set(p.get("category", "그림") for p in posts))
+    categories = sorted(set(p.get("category", "일상") for p in posts))
 
     POSTS_OUT_PATH.parent.mkdir(parents=True, exist_ok=True)
     posts_html = TEMPLATE.format(
