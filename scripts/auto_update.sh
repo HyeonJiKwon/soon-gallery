@@ -1,5 +1,6 @@
 #!/bin/bash
-# Incrementally crawl both categories, regenerate the site, and deploy to Vercel.
+# Incrementally crawl both categories, regenerate the site, and push to GitHub.
+# Vercel is connected to the GitHub repo, so a push alone triggers the deploy.
 # Intended to be run on a schedule (see scripts/com.khjkes.bloggallery.plist).
 set -e
 
@@ -17,7 +18,14 @@ cd "$PROJECT_DIR"
 
   python3 scripts/generate_site.py
 
-  vercel --prod --yes
+  if [ -n "$(git status --porcelain)" ]; then
+    git add -A -- data images index.html posts .gitignore
+    git commit -m "자동 업데이트: $(date '+%Y-%m-%d %H:%M')"
+    git push origin main
+    echo "git push 완료 -> Vercel 자동 배포 트리거됨"
+  else
+    echo "변경 사항 없음 (커밋/푸시 생략)"
+  fi
 
   echo "완료: $(date '+%Y-%m-%d %H:%M:%S')"
   echo ""
