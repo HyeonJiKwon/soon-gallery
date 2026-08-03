@@ -40,6 +40,10 @@ python3 scripts/crawl.py --blog-id khjkes --category-no 51 --category-label 제�
 - `--limit N` : 테스트용으로 N개만 크롤링
 - `--no-classify` : 아래 자동 완성작 판별을 건너뜀 (`excluded_images.json` 안 건드림)
 
+날짜는 블로그 RSS 피드(`rss.blog.naver.com`)의 절대 발행 시각을 우선 사용합니다.
+네이버 글 상세 페이지는 하루 이내 최근 글은 "n시간 전"처럼 상대 시간만 보여줘서,
+그것만 쓰면 크롤링한 시점의 상대 시간이 데이터에 고정돼버리는 문제가 있었음.
+
 ### 완성작 자동 판별
 
 신규 글을 크롤링할 때마다, 그 글의 이미지들을 Claude가 자동으로 보고
@@ -84,17 +88,21 @@ python3 scripts/sync_images.py
 ]
 ```
 
-## 배포 (Vercel)
+## 배포 (GitHub → Vercel 자동 배포)
+
+GitHub 저장소(https://github.com/HyeonJiKwon/soon-gallery)가 Vercel 프로젝트에
+연결되어 있어서, `main` 브랜치에 push만 하면 Vercel이 알아서 빌드/배포합니다.
+CLI로 직접 배포할 필요 없음:
 
 ```bash
-vercel --prod
+git add -A -- data images index.html posts .gitignore
+git commit -m "업데이트"
+git push origin main
 ```
-
-최초 1회는 `vercel login` 필요 (완료됨).
 
 ## 한 번에 다 하기
 
-크롤링(그림+제주) → 사이트 재생성 → 배포까지 한 번에:
+크롤링(그림+제주) → 사이트 재생성 → 변경 있으면 커밋+푸시(Vercel 자동 배포)까지 한 번에:
 
 ```bash
 bash scripts/auto_update.sh
