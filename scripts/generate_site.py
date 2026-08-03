@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Generate a static gallery index.html from data/posts.json."""
 import json
+import re
 from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -713,9 +714,18 @@ if (initialImgParam) {{
 """
 
 
+def date_sort_key(date_str):
+    """Parse 'YYYY. M. D. HH:MM' into a tuple that sorts newest-first when
+    reverse=True. Posts with an unparseable/missing date sort last (oldest)."""
+    m = re.match(r"(\d+)\.\s*(\d+)\.\s*(\d+)\.\s*(\d+):(\d+)", date_str or "")
+    if not m:
+        return (0, 0, 0, 0, 0)
+    return tuple(int(x) for x in m.groups())
+
+
 def main():
     posts = json.loads(DATA_PATH.read_text(encoding="utf-8"))
-    posts.sort(key=lambda p: int(p["logNo"]), reverse=True)
+    posts.sort(key=lambda p: date_sort_key(p.get("date", "")), reverse=True)
     categories = sorted(set(p.get("category", "그림") for p in posts))
 
     POSTS_OUT_PATH.parent.mkdir(parents=True, exist_ok=True)
