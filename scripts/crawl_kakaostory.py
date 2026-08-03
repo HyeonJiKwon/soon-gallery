@@ -15,6 +15,8 @@ import time
 import urllib.request
 from pathlib import Path
 
+from crawl import classify_finished_images, update_excluded_images
+
 BASE_DIR = Path(__file__).resolve().parent.parent
 DATA_DIR = BASE_DIR / "data"
 IMAGES_DIR = BASE_DIR / "images"
@@ -116,6 +118,11 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("post_urls", nargs="+")
     ap.add_argument("--category-label", default="스토리")
+    ap.add_argument(
+        "--no-classify",
+        action="store_true",
+        help="skip automatic finished-artwork classification (excluded_images.json won't be updated)",
+    )
     args = ap.parse_args()
 
     DATA_DIR.mkdir(parents=True, exist_ok=True)
@@ -134,6 +141,13 @@ def main():
             continue
         by_id[post["logNo"]] = post
         print(f"  완료: {post['title']} ({len(post['localImages'])}장, {post['date']})")
+
+        if not args.no_classify and post["localImages"]:
+            print("  완성작 판별 중...")
+            new_excluded = classify_finished_images(post["localImages"])
+            added = update_excluded_images(new_excluded)
+            if added:
+                print(f"  전체 이미지 갤러리에서 제외: {len(added)}개")
 
     out_path.write_text(
         json.dumps(list(by_id.values()), ensure_ascii=False, indent=2), encoding="utf-8"
