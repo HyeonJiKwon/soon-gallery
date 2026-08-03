@@ -10,6 +10,7 @@ import re
 import subprocess
 import time
 import urllib.request
+from email.utils import parsedate_to_datetime
 from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -31,6 +32,32 @@ def fetch(url, ua=DESKTOP_UA):
     req = urllib.request.Request(url, headers={"User-Agent": ua})
     with urllib.request.urlopen(req, timeout=15) as resp:
         return resp.read()
+
+
+def fetch_rss_dates(blog_id):
+    """Naver's post-view pages show relative time ('n시간 전') for posts less
+    than ~24h old instead of an absolute date. The blog's RSS feed has an
+    absolute <pubDate> per item, so use it to override the date whenever
+    available. Only covers the ~50 most recent posts across ALL categories,
+    so older posts keep falling back to whatever the post page shows (which
+    is already an absolute date by then)."""
+    try:
+        raw = fetch(f"https://rss.blog.naver.com/{blog_id}.xml").decode("utf-8")
+    except Exception:
+        return {}
+
+    dates = {}
+    for item in re.findall(r"<item>(.*?)</item>", raw, re.S):
+        log_no_m = re.search(r"/(\d{5,})\?fromRss", item)
+        pub_m = re.search(r"<pubDate>(.*?)</pubDate>", item)
+        if not log_no_m or not pub_m:
+            continue
+        try:
+            d = parsedate_to_datetime(pub_m.group(1))
+        except Exception:
+            continue
+        dates[log_no_m.group(1)] = f"{d.year}. {d.month}. {d.day}. {d.hour:02d}:{d.minute:02d}"
+    return dates
 
 
 def list_post_ids(blog_id, category_no, count_per_page=30, known_ids=None):
@@ -68,7 +95,7 @@ def list_post_ids(blog_id, category_no, count_per_page=30, known_ids=None):
     return log_nos
 
 
-def parse_post(blog_id, log_no):
+def parse_post(blog_id, log_no, rss_dates=None):
     from bs4 import BeautifulSoup
 
     url = f"https://m.blog.naver.com/PostView.naver?blogId={blog_id}&logNo={log_no}"
@@ -78,10 +105,11 @@ def parse_post(blog_id, log_no):
     title = soup.title.get_text().strip() if soup.title else log_no
     title = re.sub(r"\s*:\s*네이버\s*블로그\s*$", "", title).strip()
 
-    date = ""
-    date_el = soup.select_one(".blog_date, .se_publishDate, .date")
-    if date_el:
-        date = date_el.get_text(strip=True)
+    date = (rss_dates or {}).get(log_no, "")
+    if not date:
+        date_el = soup.select_one(".blog_date, .se_publishDate, .date")
+        if date_el:
+            date = date_el.get_text(strip=True)
 
     container = soup.select_one(".se-main-container")
     if not container:
@@ -137,8 +165,8 @@ def download_image(url, dest_path):
     dest_path.write_bytes(data)
 
 
-def crawl_post(blog_id, log_no, category_label):
-    post = parse_post(blog_id, log_no)
+def crawl_post(blog_id, log_no, category_label, rss_dates=None):
+    post = parse_post(blog_id, log_no, rss_dates=rss_dates)
     post["category"] = category_label
 
     post_img_dir = IMAGES_DIR / log_no
@@ -258,11 +286,13 @@ def main():
         to_crawl = to_crawl[: args.limit]
     print(f"신규 게시글 {len(to_crawl)}개 발견")
 
+    rss_dates = fetch_rss_dates(args.blog_id) if to_crawl else {}
+
     crawled_by_id = {}
     for i, log_no in enumerate(to_crawl, 1):
         print(f"[{i}/{len(to_crawl)}] {log_no} 크롤링 중...")
         try:
-            post = crawl_post(args.blog_id, log_no, args.category_label)
+            post = crawl_post(args.blog_id, log_no, args.category_label, rss_dates=rss_dates)
             crawled_by_id[log_no] = post
             if not args.no_classify and post["localImages"]:
                 print("  완성작 판별 중...")
