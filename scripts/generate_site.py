@@ -261,7 +261,7 @@ TEMPLATE = """<!doctype html>
 <body>
 <header>
   <h1>{blog_title}</h1>
-  <p><a href="https://blog.naver.com/{blog_id}" target="_blank" rel="noopener">blog.naver.com/{blog_id}</a> · 총 {post_count}개 게시글 · <a href="../index.html">전체 이미지 보기 →</a></p>
+  <p><a href="https://blog.naver.com/{blog_id}" target="_blank" rel="noopener">blog.naver.com/{blog_id}</a> · 총 {post_count}개 게시글 · <a href="../index.html">작품 한눈에 보기 →</a></p>
 </header>
 
 <div class="tabs" id="tabs"></div>
@@ -643,6 +643,11 @@ const overlay = document.getElementById('overlay');
 const lightbox = document.getElementById('lightbox');
 let currentIdx = -1;
 
+function imgParamId(img) {{
+  const filename = img.src.split('/').pop();
+  return img.logNo + '_' + filename;
+}}
+
 function openLightbox(idx) {{
   currentIdx = idx;
   const img = filteredImages[idx];
@@ -657,6 +662,8 @@ function openLightbox(idx) {{
     </div>
   `;
   overlay.classList.add('open');
+  const url = window.location.pathname + '?img=' + encodeURIComponent(imgParamId(img));
+  history.replaceState(null, '', url);
 }}
 
 function showNext() {{
@@ -673,6 +680,7 @@ function closeLightbox() {{
   overlay.classList.remove('open');
   lightbox.innerHTML = '';
   currentIdx = -1;
+  history.replaceState(null, '', window.location.pathname);
 }}
 
 document.getElementById('closeBtn').addEventListener('click', closeLightbox);
@@ -687,6 +695,18 @@ document.addEventListener('keydown', (e) => {{
   if (e.key === 'ArrowRight') showNext();
   if (e.key === 'ArrowLeft') showPrev();
 }});
+
+// open directly if URL already has ?img=... on load (no history entry added)
+const initialImgParam = new URLSearchParams(window.location.search).get('img');
+if (initialImgParam) {{
+  const fullIdx = images.findIndex(img => imgParamId(img) === initialImgParam);
+  if (fullIdx >= 0) {{
+    activeCategory = '전체';
+    renderTabs();
+    renderGrid();
+    openLightbox(fullIdx);
+  }}
+}}
 </script>
 </body>
 </html>

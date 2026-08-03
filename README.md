@@ -7,7 +7,7 @@
 
 ```
 naver_blog_gallery/
-├── index.html          # 홈 (전체 이미지 갤러리, /all이었던 페이지)
+├── index.html          # 홈 (전체 이미지 갤러리)
 ├── posts/index.html    # 글감 보기 (게시글 카드 + 본문 모달)
 ├── data/
 │   ├── posts.json          # 크롤링 원본 데이터 (제목/날짜/본문/이미지/카테고리)
