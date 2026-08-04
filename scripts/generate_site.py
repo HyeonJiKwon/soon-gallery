@@ -262,7 +262,7 @@ TEMPLATE = """<!doctype html>
 <body>
 <header>
   <h1>{blog_title}</h1>
-  <p><a href="https://blog.naver.com/{blog_id}" target="_blank" rel="noopener">blog.naver.com/{blog_id}</a> · 총 {post_count}개 게시글 · <a href="../index.html">작품 한눈에 보기 →</a></p>
+  <p> · 총 {post_count}개 게시글 · <a href="../index.html">작품 한눈에 보기 →</a></p>
 </header>
 
 <div class="tabs" id="tabs"></div>
