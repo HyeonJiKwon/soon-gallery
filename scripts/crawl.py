@@ -200,10 +200,13 @@ def classify_finished_images(local_image_paths):
 
     abs_paths = [str(BASE_DIR / p) for p in local_image_paths]
     prompt = (
-        "다음 이미지 파일들을 봐줘:\n"
+        "다음 이미지 파일들을 순서대로 봐줘 (같은 글에 실린 이미지들이야):\n"
         + "\n".join(abs_paths)
         + "\n\n완성작 판단 기준: 그림 구석에 'soon'/'Soon' 서명이 있거나 손글씨 캡션이 함께 쓰여 있으면 완성작. "
-        "실사 사진이거나 스케치 진행 과정이면 제외 대상.\n"
+        "실사 사진이거나 스케치 진행 과정이면 제외 대상.\n\n"
+        "완성작으로 판단된 이미지가 여러 장인 경우: 서로 같은 그림(동일 작품)을 다시 찍거나 스캔한 것으로 "
+        "보이면, 그 중 이미지 순서상 마지막 것 1장만 finished로 남기고 나머지는 excluded로 분류해줘. "
+        "완성작이 여러 장이어도 서로 다른 그림이면 전부 finished로 유지해줘.\n"
         'JSON만 출력 (전체 경로 그대로 사용): {"finished": [...], "excluded": [...]}'
     )
     try:
