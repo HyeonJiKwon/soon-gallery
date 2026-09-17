@@ -46,7 +46,7 @@ python3 scripts/crawl.py --blog-id khjkes --category-no 51 --category-label 제�
 
 ### 완성작 자동 판별
 
-신규 글을 크롤링할 때마다, 그 글의 이미지들을 Claude가 자동으로 보고
+신규 글을 크롤링할 때마다, 그 글의 이미지들을 Codex가 자동으로 보고
 완성작인지(전체 이미지 갤러리에 노출) 과정/사진인지(제외) 판단해서
 `data/excluded_images.json`에 자동으로 추가합니다.
 
@@ -57,7 +57,7 @@ python3 scripts/crawl.py --blog-id khjkes --category-no 51 --category-label 제�
 - 완성작이 여러 장인데 같은 그림을 다시 찍거나 스캔한 것으로 보이면, 순서상 마지막 1장만 남기고 나머지는 제외
 - 완성작이 여러 장이고 서로 다른 그림이면 전부 노출
 
-내부적으로 `claude -p` (Claude Code CLI, 로그인된 구독 계정 사용, 별도 API 키/과금 없음)를
+내부적으로 `codex exec` (Codex CLI, 로컬에 저장된 로그인 정보 사용)를
 글 1개당 한 번 호출합니다. 분류에 실패하면 아무것도 제외하지 않고 넘어갑니다(안전 쪽으로 fail).
 
 ```bash

@@ -18,11 +18,8 @@ DATA_DIR = BASE_DIR / "data"
 IMAGES_DIR = BASE_DIR / "images"
 EXCLUDED_IMAGES_PATH = DATA_DIR / "excluded_images.json"
 
-CLAUDE_BIN = "/Users/khjbest39/.local/bin/claude"
-CLASSIFY_SYSTEM_PROMPT = (
-    "You are an image classifier. You have file-reading tools to view images. "
-    "Respond with JSON only, no explanation, no markdown fences."
-)
+CODEX_BIN = "/Applications/ChatGPT.app/Contents/Resources/codex"
+CLASSIFY_SCHEMA_PATH = Path(__file__).resolve().parent / "classification_schema.json"
 
 DESKTOP_UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
 MOBILE_UA = "Mozilla/5.0 (iPhone; CPU iPhone OS 15_0 like Mac OS X) AppleWebKit/605.1.15"
@@ -190,7 +187,7 @@ def crawl_post(blog_id, log_no, category_label, rss_dates=None):
 
 
 def classify_finished_images(local_image_paths):
-    """Ask Claude to judge which images in a post are finished artwork vs.
+    """Ask Codex to judge which images in a post are finished artwork vs.
     process shots / unrelated photos. Returns the subset of local_image_paths
     (relative, 'images/<logNo>/nn.ext') that should be EXCLUDED from the
     /all gallery. Fails open (returns []) on any error so a bad call never
@@ -210,18 +207,32 @@ def classify_finished_images(local_image_paths):
         'JSON만 출력 (전체 경로 그대로 사용): {"finished": [...], "excluded": [...]}'
     )
     try:
+        command = [
+            CODEX_BIN,
+            "exec",
+            "--ephemeral",
+            "--ignore-user-config",
+            "--ignore-rules",
+            "--sandbox",
+            "read-only",
+            "--cd",
+            str(BASE_DIR),
+            "--output-schema",
+            str(CLASSIFY_SCHEMA_PATH),
+        ]
+        for abs_path in abs_paths:
+            command.extend(["--image", abs_path])
+        command.extend(["--", "-"])
+
         result = subprocess.run(
-            [
-                CLAUDE_BIN, "-p",
-                "--system-prompt", CLASSIFY_SYSTEM_PROMPT,
-                "--allowedTools", "Read",
-                "--output-format", "json",
-                prompt,
-            ],
-            capture_output=True, text=True, timeout=120,
+            command,
+            input=prompt, capture_output=True, text=True, timeout=120,
         )
-        outer = json.loads(result.stdout)
-        text = outer["result"].strip()
+        if result.returncode != 0:
+            error = result.stderr.strip() or result.stdout.strip() or "알 수 없는 Codex CLI 오류"
+            raise RuntimeError(f"Codex CLI 종료 코드 {result.returncode}: {error}")
+
+        text = result.stdout.strip()
         text = re.sub(r"^```(?:json)?\s*|\s*```$", "", text)
         parsed = json.loads(text)
         excluded_abs = set(parsed.get("excluded", []))

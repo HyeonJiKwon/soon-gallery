@@ -1,0 +1,22 @@
+{
+  "type": "object",
+  "properties": {
+    "finished": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "excluded": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "required": [
+    "finished",
+    "excluded"
+  ],
+  "additionalProperties": false
+}
