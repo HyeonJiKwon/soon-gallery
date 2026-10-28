@@ -15,7 +15,11 @@ import time
 import urllib.request
 from pathlib import Path
 
-from crawl import classify_finished_images, update_excluded_images
+from crawl import (
+    classify_finished_images,
+    queue_pending_classification,
+    update_excluded_images,
+)
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 DATA_DIR = BASE_DIR / "data"
@@ -145,9 +149,13 @@ def main():
         if not args.no_classify and post["localImages"]:
             print("  완성작 판별 중...")
             new_excluded = classify_finished_images(post["localImages"])
-            added = update_excluded_images(new_excluded)
-            if added:
-                print(f"  전체 이미지 갤러리에서 제외: {len(added)}개")
+            if new_excluded is None:
+                if queue_pending_classification(post["localImages"]):
+                    print("  다음 자동 실행 재시도 대기열에 등록")
+            else:
+                added = update_excluded_images(new_excluded)
+                if added:
+                    print(f"  전체 이미지 갤러리에서 제외: {len(added)}개")
 
     out_path.write_text(
         json.dumps(list(by_id.values()), ensure_ascii=False, indent=2), encoding="utf-8"

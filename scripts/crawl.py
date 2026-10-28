@@ -6,7 +6,9 @@ Usage:
 """
 import argparse
 import json
+import os
 import re
+import shutil
 import subprocess
 import time
 import urllib.request
@@ -17,12 +19,48 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 DATA_DIR = BASE_DIR / "data"
 IMAGES_DIR = BASE_DIR / "images"
 EXCLUDED_IMAGES_PATH = DATA_DIR / "excluded_images.json"
+PENDING_CLASSIFICATIONS_PATH = DATA_DIR / "pending_classifications.json"
 
-CODEX_BIN = "/Applications/ChatGPT.app/Contents/Resources/codex"
 CLASSIFY_SCHEMA_PATH = Path(__file__).resolve().parent / "classification_schema.json"
 
 DESKTOP_UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
 MOBILE_UA = "Mozilla/5.0 (iPhone; CPU iPhone OS 15_0 like Mac OS X) AppleWebKit/605.1.15"
+
+
+def resolve_codex_bin():
+    """Find Codex without depending on one ChatGPT.app bundle layout."""
+    candidates = []
+
+    configured = os.environ.get("CODEX_BIN")
+    if configured:
+        candidates.append(Path(configured).expanduser())
+
+    on_path = shutil.which("codex")
+    if on_path:
+        candidates.append(Path(on_path))
+
+    resource_roots = [
+        Path("/Applications/ChatGPT.app/Contents/Resources"),
+        Path.home() / "Applications/ChatGPT.app/Contents/Resources",
+    ]
+    for root in resource_roots:
+        if root.exists():
+            candidates.extend(root.glob("**/codex"))
+
+    checked = []
+    for candidate in candidates:
+        resolved = candidate.resolve()
+        if resolved in checked:
+            continue
+        checked.append(resolved)
+        if resolved.is_file() and os.access(resolved, os.X_OK):
+            return str(resolved)
+
+    locations = ", ".join(str(path) for path in checked) or "검색 결과 없음"
+    raise FileNotFoundError(
+        "Codex CLI를 찾을 수 없습니다. CODEX_BIN 환경변수를 지정하거나 Codex를 PATH에 추가하세요. "
+        f"확인한 경로: {locations}"
+    )
 
 
 def fetch(url, ua=DESKTOP_UA):
@@ -190,8 +228,7 @@ def classify_finished_images(local_image_paths):
     """Ask Codex to judge which images in a post are finished artwork vs.
     process shots / unrelated photos. Returns the subset of local_image_paths
     (relative, 'images/<logNo>/nn.ext') that should be EXCLUDED from the
-    /all gallery. Fails open (returns []) on any error so a bad call never
-    hides an image that should be visible."""
+    /all gallery. Returns None on failure so the caller can queue a retry."""
     if not local_image_paths:
         return []
 
@@ -207,8 +244,9 @@ def classify_finished_images(local_image_paths):
         'JSON만 출력 (전체 경로 그대로 사용): {"finished": [...], "excluded": [...]}'
     )
     try:
+        codex_bin = resolve_codex_bin()
         command = [
-            CODEX_BIN,
+            codex_bin,
             "exec",
             "--ephemeral",
             "--ignore-user-config",
@@ -237,14 +275,59 @@ def classify_finished_images(local_image_paths):
         parsed = json.loads(text)
         excluded_abs = set(parsed.get("excluded", []))
     except Exception as e:
-        print(f"  분류 실패, 건너뜀: {e}")
-        return []
+        print(f"  분류 실패, 재시도 대기: {e}")
+        return None
 
     excluded_rel = []
     for rel, ap in zip(local_image_paths, abs_paths):
         if ap in excluded_abs:
             excluded_rel.append(rel)
     return excluded_rel
+
+
+def load_pending_classifications():
+    if not PENDING_CLASSIFICATIONS_PATH.exists():
+        return []
+    pending = json.loads(PENDING_CLASSIFICATIONS_PATH.read_text(encoding="utf-8"))
+    return [paths for paths in pending if isinstance(paths, list) and paths]
+
+
+def save_pending_classifications(pending):
+    PENDING_CLASSIFICATIONS_PATH.write_text(
+        json.dumps(pending, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
+
+
+def queue_pending_classification(local_image_paths):
+    pending = load_pending_classifications()
+    paths = list(local_image_paths)
+    if paths not in pending:
+        pending.append(paths)
+        save_pending_classifications(pending)
+        return True
+    return False
+
+
+def retry_pending_classifications():
+    pending = load_pending_classifications()
+    if not pending:
+        print("재시도할 이미지 분류 없음")
+        return 0, 0
+
+    remaining = []
+    added_count = 0
+    print(f"실패했던 이미지 분류 {len(pending)}건 재시도 중...")
+    for local_image_paths in pending:
+        new_excluded = classify_finished_images(local_image_paths)
+        if new_excluded is None:
+            remaining.append(local_image_paths)
+            continue
+        added_count += len(update_excluded_images(new_excluded))
+
+    save_pending_classifications(remaining)
+    print(f"분류 재시도 완료: 제외 {added_count}개 추가, 대기 {len(remaining)}건")
+    return added_count, len(remaining)
 
 
 def update_excluded_images(new_excluded_paths):
@@ -311,9 +394,13 @@ def main():
             if not args.no_classify and post["localImages"]:
                 print("  완성작 판별 중...")
                 new_excluded = classify_finished_images(post["localImages"])
-                added = update_excluded_images(new_excluded)
-                if added:
-                    print(f"  전체 이미지 갤러리에서 제외: {len(added)}개")
+                if new_excluded is None:
+                    if queue_pending_classification(post["localImages"]):
+                        print("  다음 자동 실행 재시도 대기열에 등록")
+                else:
+                    added = update_excluded_images(new_excluded)
+                    if added:
+                        print(f"  전체 이미지 갤러리에서 제외: {len(added)}개")
         except Exception as e:
             print(f"  실패: {e}")
         time.sleep(0.3)

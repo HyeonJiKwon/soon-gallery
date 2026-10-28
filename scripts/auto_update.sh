@@ -13,6 +13,7 @@ cd "$PROJECT_DIR"
 {
   echo "===== $(date '+%Y-%m-%d %H:%M:%S') ====="
 
+  python3 scripts/retry_classifications.py
   python3 scripts/crawl.py --blog-id khjkes --category-no 46 --category-label 일상
   python3 scripts/crawl.py --blog-id khjkes --category-no 51 --category-label 제주
 

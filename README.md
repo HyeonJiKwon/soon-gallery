@@ -58,7 +58,9 @@ python3 scripts/crawl.py --blog-id khjkes --category-no 51 --category-label 제�
 - 완성작이 여러 장이고 서로 다른 그림이면 전부 노출
 
 내부적으로 `codex exec` (Codex CLI, 로컬에 저장된 로그인 정보 사용)를
-글 1개당 한 번 호출합니다. 분류에 실패하면 아무것도 제외하지 않고 넘어갑니다(안전 쪽으로 fail).
+글 1개당 한 번 호출합니다. 분류 실패 시에는 이미지를 숨기지 않고 재시도 대기열에 기록합니다.
+Codex 실행 파일은 `CODEX_BIN` 환경변수, `PATH`, ChatGPT 앱 번들 순서로 탐색합니다.
+분류 실패 건은 `data/pending_classifications.json`에 기록하고 다음 자동 실행 때 먼저 재시도합니다.
 
 ```bash
 # 예: 제주 카테고리 전체 재크롤링
